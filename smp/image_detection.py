@@ -15,32 +15,62 @@ import tensorflow as tf
 
 
 # global for all functions
-paw_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../assets/paw_icon.png")
-arena_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../assets/arena_mode_icon.png")
+paw_path = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "../assets/paw_icon.png"
+)
+arena_path = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "../assets/arena_mode_icon.png"
+)
 
-paw_img = cv2.cvtColor(cv2.imread(paw_path, cv2.IMREAD_UNCHANGED)[..., :3], cv2.COLOR_BGR2RGB)
-arena_img = cv2.cvtColor(cv2.imread(arena_path, cv2.IMREAD_UNCHANGED)[..., :3], cv2.COLOR_BGR2RGB)
+paw_img = cv2.cvtColor(
+    cv2.imread(paw_path, cv2.IMREAD_UNCHANGED)[..., :3], cv2.COLOR_BGR2RGB
+)
+arena_img = cv2.cvtColor(
+    cv2.imread(arena_path, cv2.IMREAD_UNCHANGED)[..., :3], cv2.COLOR_BGR2RGB
+)
 
 # Load the pre-trained CNN model
-model = tf.keras.applications.VGG16(weights='imagenet', include_top=False, input_shape=(112, 112, 3))
+model = tf.keras.applications.VGG16(
+    weights="imagenet", include_top=False, input_shape=(112, 112, 3)
+)
 # model = tf.keras.applications.MobileNetV2(weights='imagenet', include_top=False, input_shape=(112, 112, 3))
 
-# get screen resolution scale, store as global variable in this scope
-dimensions_scale = get_screen_scale()
 
-supported_pets = ["ant", "beaver", "cricket", "duck", "fish", "horse", "otter", "pig", "sloth"]
-supported_food = [
-    "apple", "banana", "canned_food", "chili", "chocolate", "cupcake", "garlic",
-    "melon", "pear", "pizza", "salad_bowl", "sleeping_pill", "steak", "sushi",
+supported_pets = [
+    "ant",
+    "beaver",
+    "cricket",
+    "duck",
+    "fish",
+    "horse",
+    "otter",
+    "pig",
+    "sloth",
 ]
-
-print("DIMENSIONS_SCALE:", dimensions_scale)
+supported_food = [
+    "apple",
+    "banana",
+    "canned_food",
+    "chili",
+    "chocolate",
+    "cupcake",
+    "garlic",
+    "melon",
+    "pear",
+    "pizza",
+    "salad_bowl",
+    "sleeping_pill",
+    "steak",
+    "sushi",
+]
 
 
 def get_img_from_coords(coords, to_numpy=True):
     """
     method to get cropped image from coordinates
     """
+    dimensions_scale = get_screen_scale()
+
     # as tuple does not support item assignment, change to np.array
     coords = np.array(coords)
 
@@ -69,6 +99,8 @@ def get_animal_from_screen():
     img = get_img_from_coords(coords=(310, 620, 1630, 750), to_numpy=False)
     # img = get_img_from_coords(coords=(0, 1920, ))
 
+    dimensions_scale = get_screen_scale()
+
     # plt.imshow(img)
     # plt.show()
 
@@ -82,8 +114,8 @@ def get_animal_from_screen():
         [590, 0, 720, img_n_width],
         [1015, 0, 1145, img_n_width],
         [1160, 0, 1290, img_n_width],
-        #[730, 0, 860, img_n_width],
-        #[875, 0, 1005, img_n_width],
+        # [730, 0, 860, img_n_width],
+        # [875, 0, 1005, img_n_width],
     ]
 
     images = []
@@ -93,13 +125,12 @@ def get_animal_from_screen():
         bbox[1] = dimensions_scale[1] * bbox[1]
         bbox[2] = dimensions_scale[0] * bbox[2]
         bbox[3] = dimensions_scale[1] * bbox[3]
-        
+
         image = img.crop(tuple(bbox))
         images0.append(image)
         images.append(cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR))
 
     return images, images0
-
 
 
 def matching(image, needle_img):
@@ -123,21 +154,23 @@ def matching(image, needle_img):
     scene_features = model.predict(np.expand_dims(needle_img_pr, axis=0), verbose=False)
 
     # Calculate the distance between the features -> this worked OK but not thaaat well
-    #distance = np.linalg.norm(query_features - scene_features)
+    # distance = np.linalg.norm(query_features - scene_features)
 
     # Calculate the cosine similarity between the features
-    similarity = cosine_similarity(query_features.reshape(1, -1), scene_features.reshape(1, -1))
+    similarity = cosine_similarity(
+        query_features.reshape(1, -1), scene_features.reshape(1, -1)
+    )
     distance = similarity[0][0]
 
-    #plt.imshow(image_pr)
-    #plt.show()
+    # plt.imshow(image_pr)
+    # plt.show()
 
-    #return 1
+    # return 1
 
     # Print the similarity score
     # print(f"The similarity score between the two images is {similarity[0][0]}")
 
-    if distance > 0.40: # distance < 1300:
+    if distance > 0.40:  # distance < 1300:
         """
         fig, ax = plt.subplots(1, 3)
         ax[0].imshow(image)
@@ -149,7 +182,7 @@ def matching(image, needle_img):
         """
 
         return 1
-        
+
     return 0
 
 
@@ -158,7 +191,9 @@ def get_image_directory(directory):
     returns filenames one-by-one from SAP_res folder of animals and items
     """
     dir = os.listdir(directory)
-    dir = list(filter((".DS_Store").__ne__, dir))  # remove occurences of ".DS_Store" relevant for macOS
+    dir = list(
+        filter((".DS_Store").__ne__, dir)
+    )  # remove occurences of ".DS_Store" relevant for macOS
     for folder in dir:
         for filename in os.listdir(os.path.join(directory, folder)):
             file = os.path.join(folder, filename)
@@ -179,8 +214,8 @@ def find_the_animals(pets_directory: str, food_directory: str):
 
     print("N IMAGES:", len(images))
     for image in images[:5]:
-        # plt.imshow(image)
-        # plt.show()
+        #plt.imshow(image)
+        #plt.show()
         # continue
         for directory, filename in pet_paths:
             # supported pets
@@ -188,11 +223,13 @@ def find_the_animals(pets_directory: str, food_directory: str):
                 continue
             if filename.startswith(".DS_Store"):
                 continue
-            im = cv2.imread(directory + filename, cv2.COLOR_BGR2RGB)[..., :3][:, ::-1, :]
+            im = cv2.imread(directory + filename, cv2.COLOR_BGR2RGB)[..., :3][
+                :, ::-1, :
+            ]
             if matching(image, im):
                 list_of_animals.append(filename.split(".")[0])
                 break
-    
+
     for image in images[5:]:
         # plt.imshow(image)
         # plt.show()
@@ -202,17 +239,19 @@ def find_the_animals(pets_directory: str, food_directory: str):
                 continue
             if filename.startswith(".DS_Store"):
                 continue
-            im = cv2.imread(directory + filename, cv2.COLOR_BGR2RGB)[..., :3][:, ::-1, :]
+            im = cv2.imread(directory + filename, cv2.COLOR_BGR2RGB)[..., :3][
+                :, ::-1, :
+            ]
             if matching(image, im):
                 list_of_animals.append(filename.split(".")[0])
                 break
-    
+
     if len(list_of_animals) > 7:
         return 0
 
     list_of_animals1 = list_of_animals.copy()
     print(list_of_animals)
-        
+
     list_of_animals1 = tuple(list_of_animals1)
     references = tuple(references)
 
@@ -232,7 +271,12 @@ def find_arena():
         full_img = cv2.resize(full_img, arena_img.shape[:2][::-1])
 
     try:
-        value = ssim(arena_img, full_img, data_range=full_img.max() - full_img.min(), channel_axis=2)
+        value = ssim(
+            arena_img,
+            full_img,
+            data_range=full_img.max() - full_img.min(),
+            channel_axis=2,
+        )
     except RuntimeWarning:
         # this is not a critical error. We can disregard this and continue running
         value = 0
@@ -248,12 +292,17 @@ def find_paw():
     method to detect if the game is in pre-battle state (detects if paw icon is in top-right corner)
     """
     full_img = get_img_from_coords((1737.5, 15, 1816.5, 93))
-    
+
     if full_img.shape != paw_img.shape:
         full_img = cv2.resize(full_img, paw_img.shape[:2][::-1])
 
     try:
-        value = ssim(paw_img, full_img, data_range=full_img.max() - full_img.min(), channel_axis=2)
+        value = ssim(
+            paw_img,
+            full_img,
+            data_range=full_img.max() - full_img.min(),
+            channel_axis=2,
+        )
     except RuntimeWarning:
         # this is not a critical error. We can disregard this and continue running
         value = 0

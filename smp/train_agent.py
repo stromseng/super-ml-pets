@@ -8,10 +8,7 @@ from sb3_contrib.common.maskable.utils import get_action_masks
 from stable_baselines3.common.callbacks import CheckpointCallback, EvalCallback
 from stable_baselines3.common.logger import configure
 from sapai_gym import SuperAutoPetsEnv
-from sapai_gym.opponent_gen.opponent_generators import (
-    random_opp_generator,
-    biggest_numbers_horizontal_opp_generator,
-)
+from sapai_gym.opponent_gen.opponent_generators import random_opp_generator, biggest_numbers_horizontal_opp_generator
 from tqdm import tqdm
 import numpy as np
 import os
@@ -39,13 +36,11 @@ def train_with_masks(ret):
     logger = configure(history_path)
 
     # create models directory if it does not exist
-    if not os.path.exists("./models/"):
-        os.makedirs("./models/")
+    if not os.path.exists('./models/'):
+        os.makedirs('./models/')
 
     # setup model checkpoint callback, to save model after a specific #iters
-    checkpoint_callback = CheckpointCallback(
-        save_freq=ret.save_freq, save_path="./models/", name_prefix=ret.model_name
-    )
+    checkpoint_callback = CheckpointCallback(save_freq=ret.save_freq, save_path='./models/', name_prefix=ret.model_name)
 
     # save best model, using deterministic eval
     # eval_callback = EvalCallback(eval_env, best_model_save_path='./models/', log_path='./logs/', eval_freq=1000,
@@ -54,9 +49,7 @@ def train_with_masks(ret):
     if ret.finetune is not None:
         # check if current python version differ from the one the model is trained with
         vals = ret.infer_pversion.split(".")
-        newer_python_version = (
-            sys.version_info.major != vals[0] or sys.version_info.minor != vals[1]
-        )
+        newer_python_version = sys.version_info.major != vals[0] or sys.version_info.minor != vals[1]
         custom_objects = {}
         if newer_python_version:
             custom_objects = {
@@ -71,14 +64,8 @@ def train_with_masks(ret):
         model.set_env(env)
     else:
         log.info("Training from scratch...")
-        model = MaskablePPO(
-            "MlpPolicy",
-            env,
-            verbose=0,
-            batch_size=ret.batch_size,
-            learning_rate=ret.learning_rate,
-            gamma=ret.gamma,
-        )
+        model = MaskablePPO("MlpPolicy", env, verbose=0, batch_size=ret.batch_size, learning_rate=ret.learning_rate,
+                            gamma=ret.gamma)
 
     # train
     log.info("Starting training...")
@@ -94,14 +81,8 @@ def train_with_masks(ret):
                 break
             # setup trainer and start learning
             model.set_logger(logger)
-            model.learn(
-                total_timesteps=ret.nb_steps,
-                callback=checkpoint_callback,
-                progress_bar=True,
-            )
-            evaluate_policy(
-                model, env, n_eval_episodes=100, reward_threshold=0, warn=False
-            )
+            model.learn(total_timesteps=ret.nb_steps, callback=checkpoint_callback)
+            evaluate_policy(model, env, n_eval_episodes=100, reward_threshold=0, warn=False)
             obs = env.reset()
 
             # if we reach 1M iterations, then training can stop, else, restart!
@@ -132,30 +113,16 @@ def train_with_masks(ret):
     log.info("Predicting...")
 
     # predict
+    obs = env.reset()
     rewards = []
-    wins = []
     for i in tqdm(range(ret.nb_games), "Games:"):
-        # Simulate games untill done
-        obs = env.reset()
-        done = False
-        game_rewards = []
+        # Predict outcome with model
+        action_masks = get_action_masks(env)
+        action, _states = trained_model.predict(obs, action_masks=action_masks, deterministic=True)
 
-        while not done:
-            # Predict outcome with model
-            action_masks = get_action_masks(env)
-            action, _states = trained_model.predict(
-                obs, action_masks=action_masks, deterministic=True
-            )
-
-            obs, reward, done, info = env.step(action)
-            game_rewards.append(reward)
-
-            if done:
-                wins.append(env.player.wins)
-                rewards.append(sum(game_rewards))
-                obs = env.reset()
-
-    log.info(
-        f"Total reward: {sum(rewards)}, Average reward per game: {np.mean(rewards)}, Wins: {sum(wins)}, Avg wins per game: {np.mean(wins)}"
-    )
+        obs, reward, done, info = env.step(action)
+        if done:
+            obs = env.reset()
+        rewards.append(reward)
+    log.info(" ".join([str(sum(rewards)), str(len(rewards)), str(np.mean(rewards))]))
     env.close()

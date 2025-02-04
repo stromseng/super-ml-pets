@@ -2,12 +2,16 @@
 Convenience methods
 """
 
-import tkinter as tk
-import pynput
-import numpy as np
 import logging as log
-import os
-from sapai_gym.opponent_gen.opponent_generators import biggest_numbers_horizontal_opp_generator
+import sys
+from functools import lru_cache
+
+import numpy as np
+import pynput
+from AppKit import NSScreen
+from sapai_gym.opponent_gen.opponent_generators import (
+    biggest_numbers_horizontal_opp_generator,
+)
 
 
 def define_logger(verbose=1):
@@ -23,12 +27,15 @@ def define_logger(verbose=1):
     elif verbose == 3:
         level = log.WARNING
     else:
-        raise ValueError("Unknown verbose was set. 0 to disable verbose, 1 for INFO, 2 for DEBUG, 3 for WARNING.")
+        raise ValueError(
+            "Unknown verbose was set. 0 to disable verbose, 1 for INFO, 2 for DEBUG, 3 for WARNING."
+        )
 
     log.basicConfig(
         format="%(levelname)s %(filename)s %(lineno)s %(message)s",
-        level=level
-        )
+        level=level,
+        stream=sys.stdout,
+    )
 
 
 def get_position():
@@ -39,47 +46,64 @@ def get_position():
 
     # hard-coded positions assuming a screen resolution of 1920 x 1080
     position = {
-        '0_team_slot': (524, 408),
-        '1_team_slot': (669, 408),
-        '2_team_slot': (810, 408),
-        '3_team_slot': (950, 408),
-        '4_team_slot': (1090, 408),
-        '0_slot': (529, 695),
-        '1_slot': (667, 695),
-        '2_slot': (812, 695),
-        '3_slot': (952, 695),
-        '4_slot': (1092, 695),
-        '5_slot': (1232, 695),
-        '6_slot': (1372, 695),
-        'freeze': (1029, 981),
-        'end_turn': (1614, 978),
-        'roll': (193, 978),
-        'sell': (1029, 981),
+        "0_team_slot": (524, 408),
+        "1_team_slot": (669, 408),
+        "2_team_slot": (810, 408),
+        "3_team_slot": (950, 408),
+        "4_team_slot": (1090, 408),
+        "0_slot": (529, 695),
+        "1_slot": (667, 695),
+        "2_slot": (812, 695),
+        "3_slot": (952, 695),
+        "4_slot": (1092, 695),
+        "5_slot": (1232, 695),
+        "6_slot": (1372, 695),
+        "freeze": (1029, 981),
+        "end_turn": (1614, 978),
+        "roll": (193, 978),
+        "sell": (1029, 981),
         # other stuff related to image_detection.py (detection of animals)
-        'img_lefttop': (450, 620),
-        'img_bottomright': (1500, 750),
-        'img_00': (10, 140),
-        'img_01': (155, 285),
-        'img_02': (300, 285),
-        'img_03': (445, 575),
-        'img_04': (590, 720),
-        'img_05': (730, 860),
-        'img_06': (875, 1005),
+        "img_lefttop": (450, 620),
+        "img_bottomright": (1500, 750),
+        "img_00": (10, 140),
+        "img_01": (155, 285),
+        "img_02": (300, 285),
+        "img_03": (445, 575),
+        "img_04": (590, 720),
+        "img_05": (730, 860),
+        "img_06": (875, 1005),
     }
 
-    # scale these positions to match current screen resolution 
+    # scale these positions to match current screen resolution
     # disable scaling for now
     curr_geometry = get_curr_screen_geometry()
-    log.info("Current display dimensions: (" + str(curr_geometry[0]) + ", " + str(curr_geometry[1]) + ")")
+    log.info(
+        "Current display dimensions: ("
+        + str(curr_geometry[0])
+        + ", "
+        + str(curr_geometry[1])
+        + ")"
+    )
     for key in position.keys():
         curr_position = position[key]
         # # note that there is an intended height/width switch!
-        position[key] = (int(np.round(curr_position[0] * float(curr_geometry[0]) / template_resolution[0])),
-                         int(np.round(curr_position[1] * float(curr_geometry[1]) / template_resolution[1])))
+        position[key] = (
+            int(
+                np.round(
+                    curr_position[0] * float(curr_geometry[0]) / template_resolution[0]
+                )
+            ),
+            int(
+                np.round(
+                    curr_position[1] * float(curr_geometry[1]) / template_resolution[1]
+                )
+            ),
+        )
 
     return position
 
 
+@lru_cache(maxsize=1)
 def get_screen_scale():
     """
     Returns dimension scale difference between current screen dimensions and template.
@@ -93,16 +117,16 @@ def get_screen_scale():
 
 def get_curr_screen_geometry():
     """
-    Workaround to get the size of the current screen in a multi-screen setup
-    Note that this method captures the current scaled resolution and not necessary the true resolution
+    Returns the full screen resolution as (height, width) in pixels on macOS using AppKit.
     """
-    root = tk.Tk()
-    root.update_idletasks()
-    root.attributes('-fullscreen', True)
-    root.state('iconic')
-    geometry = root.winfo_geometry()
-    root.destroy()
-    return np.array(geometry.split("+")[0].split("x")).astype(int)
+    main_screen = NSScreen.mainScreen()
+    frame = main_screen.frame()
+    width = int(frame.size.width)
+    height = int(frame.size.height)
+    log.info(
+        "Got screen size using AppKit: (height={}, width={})".format(height, width)
+    )
+    return (height, width)
 
 
 def move_drag_tween(n):
@@ -119,7 +143,7 @@ def custom_easeOutQuad(n):
     Returns:
       (float) The line progress, starting at 0.0 and ending at 1.0. Suitable for passing to getPointOnLine().
     """
-    return -n * (n-2)
+    return -n * (n - 2)
 
 
 def opponent_generator(num_turns):
